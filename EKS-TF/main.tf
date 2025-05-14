@@ -1,17 +1,15 @@
 data "aws_iam_policy_document" "assume_role" {
   statement {
     effect = "Allow"
-
     principals {
       type        = "Service"
       identifiers = ["eks.amazonaws.com"]
     }
-
     actions = ["sts:AssumeRole"]
   }
 }
 
-# Updated cluster IAM role
+# Cluster IAM role
 resource "aws_iam_role" "example" {
   name               = "eks-cluster-cloud-v2"
   assume_role_policy = data.aws_iam_policy_document.assume_role.json
@@ -22,26 +20,28 @@ resource "aws_iam_role_policy_attachment" "example-AmazonEKSClusterPolicy" {
   role       = aws_iam_role.example.name
 }
 
-#get vpc data
+# Get default VPC
 data "aws_vpc" "default" {
   default = true
 }
 
-#get public subnets for cluster
-data "aws_subnets" "public" {
+# Get subnets in supported AZs only
+data "aws_subnet_ids" "valid" {
+  vpc_id = data.aws_vpc.default.id
+
   filter {
-    name   = "vpc-id"
-    values = [data.aws_vpc.default.id]
+    name   = "availability-zone"
+    values = ["us-east-1a", "us-east-1b", "us-east-1c"]
   }
 }
 
-# cluster provision
+# EKS Cluster
 resource "aws_eks_cluster" "example" {
   name     = "EKS_CLOUD"
   role_arn = aws_iam_role.example.arn
 
   vpc_config {
-    subnet_ids = data.aws_subnets.public.ids
+    subnet_ids = data.aws_subnet_ids.valid.ids
   }
 
   depends_on = [
@@ -49,19 +49,19 @@ resource "aws_eks_cluster" "example" {
   ]
 }
 
-# Updated node group IAM role
+# Node group IAM role
 resource "aws_iam_role" "example1" {
   name = "eks-node-group-cloud-v2"
 
   assume_role_policy = jsonencode({
+    Version = "2012-10-17",
     Statement = [{
-      Action = "sts:AssumeRole"
-      Effect = "Allow"
+      Effect = "Allow",
       Principal = {
         Service = "ec2.amazonaws.com"
-      }
+      },
+      Action = "sts:AssumeRole"
     }]
-    Version = "2012-10-17"
   })
 }
 
@@ -80,12 +80,12 @@ resource "aws_iam_role_policy_attachment" "example-AmazonEC2ContainerRegistryRea
   role       = aws_iam_role.example1.name
 }
 
-#create node group
+# EKS Node Group
 resource "aws_eks_node_group" "example" {
   cluster_name    = aws_eks_cluster.example.name
   node_group_name = "Node-cloud"
   node_role_arn   = aws_iam_role.example1.arn
-  subnet_ids      = data.aws_subnets.public.ids
+  subnet_ids      = data.aws_subnet_ids.valid.ids
 
   scaling_config {
     desired_size = 1
