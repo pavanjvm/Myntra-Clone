@@ -9,25 +9,29 @@ data "aws_iam_policy_document" "assume_role" {
   }
 }
 
-# Cluster IAM role
+# IAM Role for EKS Cluster
 resource "aws_iam_role" "example" {
   name               = "eks-cluster-cloud-v2"
   assume_role_policy = data.aws_iam_policy_document.assume_role.json
 }
 
+# Attach EKS Cluster Policy
 resource "aws_iam_role_policy_attachment" "example-AmazonEKSClusterPolicy" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
   role       = aws_iam_role.example.name
 }
 
-# Get default VPC
+# Get Default VPC
 data "aws_vpc" "default" {
   default = true
 }
 
-# Get subnets in supported AZs only
-data "aws_subnet_ids" "valid" {
-  vpc_id = data.aws_vpc.default.id
+# Get Public Subnets in Supported AZs
+data "aws_subnets" "valid" {
+  filter {
+    name   = "vpc-id"
+    values = [data.aws_vpc.default.id]
+  }
 
   filter {
     name   = "availability-zone"
@@ -41,7 +45,7 @@ resource "aws_eks_cluster" "example" {
   role_arn = aws_iam_role.example.arn
 
   vpc_config {
-    subnet_ids = data.aws_subnet_ids.valid.ids
+    subnet_ids = data.aws_subnets.valid.ids
   }
 
   depends_on = [
@@ -49,7 +53,7 @@ resource "aws_eks_cluster" "example" {
   ]
 }
 
-# Node group IAM role
+# IAM Role for Node Group
 resource "aws_iam_role" "example1" {
   name = "eks-node-group-cloud-v2"
 
@@ -65,6 +69,7 @@ resource "aws_iam_role" "example1" {
   })
 }
 
+# Attach Required Policies to Node Group Role
 resource "aws_iam_role_policy_attachment" "example-AmazonEKSWorkerNodePolicy" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"
   role       = aws_iam_role.example1.name
@@ -80,12 +85,12 @@ resource "aws_iam_role_policy_attachment" "example-AmazonEC2ContainerRegistryRea
   role       = aws_iam_role.example1.name
 }
 
-# EKS Node Group
+# Node Group
 resource "aws_eks_node_group" "example" {
   cluster_name    = aws_eks_cluster.example.name
   node_group_name = "Node-cloud"
   node_role_arn   = aws_iam_role.example1.arn
-  subnet_ids      = data.aws_subnet_ids.valid.ids
+  subnet_ids      = data.aws_subnets.valid.ids
 
   scaling_config {
     desired_size = 1
