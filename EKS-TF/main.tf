@@ -11,8 +11,9 @@ data "aws_iam_policy_document" "assume_role" {
   }
 }
 
+# Updated cluster IAM role
 resource "aws_iam_role" "example" {
-  name               = "eks-cluster-cloud"
+  name               = "eks-cluster-cloud-v2"
   assume_role_policy = data.aws_iam_policy_document.assume_role.json
 }
 
@@ -25,6 +26,7 @@ resource "aws_iam_role_policy_attachment" "example-AmazonEKSClusterPolicy" {
 data "aws_vpc" "default" {
   default = true
 }
+
 #get public subnets for cluster
 data "aws_subnets" "public" {
   filter {
@@ -32,7 +34,8 @@ data "aws_subnets" "public" {
     values = [data.aws_vpc.default.id]
   }
 }
-#cluster provision
+
+# cluster provision
 resource "aws_eks_cluster" "example" {
   name     = "EKS_CLOUD"
   role_arn = aws_iam_role.example.arn
@@ -41,15 +44,14 @@ resource "aws_eks_cluster" "example" {
     subnet_ids = data.aws_subnets.public.ids
   }
 
-  # Ensure that IAM Role permissions are created before and deleted after EKS Cluster handling.
-  # Otherwise, EKS will not be able to properly delete EKS managed EC2 infrastructure such as Security Groups.
   depends_on = [
     aws_iam_role_policy_attachment.example-AmazonEKSClusterPolicy,
   ]
 }
 
+# Updated node group IAM role
 resource "aws_iam_role" "example1" {
-  name = "eks-node-group-cloud"
+  name = "eks-node-group-cloud-v2"
 
   assume_role_policy = jsonencode({
     Statement = [{
@@ -90,10 +92,9 @@ resource "aws_eks_node_group" "example" {
     max_size     = 2
     min_size     = 1
   }
+
   instance_types = ["t2.medium"]
 
-  # Ensure that IAM Role permissions are created before and deleted after EKS Node Group handling.
-  # Otherwise, EKS will not be able to properly delete EC2 Instances and Elastic Network Interfaces.
   depends_on = [
     aws_iam_role_policy_attachment.example-AmazonEKSWorkerNodePolicy,
     aws_iam_role_policy_attachment.example-AmazonEKS_CNI_Policy,
