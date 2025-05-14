@@ -36,8 +36,8 @@ jobs:
           DOCKER_CLI_ACI: 1
       - name: Docker Scout Image Scan
         run: |
-          docker-scout quickview pavan0605/myntra:latest
-          docker-scout cves pavan0605/myntra:latest
+          docker scout quickview pavan0605/myntra:latest
+          docker scout cves pavan0605/myntra:latest
   deploy:
    needs: build-analyze-scan
    runs-on: [self-hosted]
