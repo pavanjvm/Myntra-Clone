@@ -32,7 +32,6 @@ data "aws_subnets" "valid" {
     name   = "vpc-id"
     values = [data.aws_vpc.default.id]
   }
-
   filter {
     name   = "availability-zone"
     values = ["us-east-1a", "us-east-1b", "us-east-1c"]
@@ -43,11 +42,9 @@ data "aws_subnets" "valid" {
 resource "aws_eks_cluster" "example" {
   name     = "EKS_CLOUD"
   role_arn = aws_iam_role.example.arn
-
   vpc_config {
     subnet_ids = data.aws_subnets.valid.ids
   }
-
   depends_on = [
     aws_iam_role_policy_attachment.example-AmazonEKSClusterPolicy,
   ]
@@ -56,7 +53,6 @@ resource "aws_eks_cluster" "example" {
 # IAM Role for Node Group
 resource "aws_iam_role" "example1" {
   name = "eks-node-group-cloud-v2"
-
   assume_role_policy = jsonencode({
     Version = "2012-10-17",
     Statement = [{
@@ -91,15 +87,12 @@ resource "aws_eks_node_group" "example" {
   node_group_name = "Node-cloud"
   node_role_arn   = aws_iam_role.example1.arn
   subnet_ids      = data.aws_subnets.valid.ids
-
   scaling_config {
     desired_size = 1
     max_size     = 2
     min_size     = 1
   }
-
   instance_types = ["t2.medium"]
-
   depends_on = [
     aws_iam_role_policy_attachment.example-AmazonEKSWorkerNodePolicy,
     aws_iam_role_policy_attachment.example-AmazonEKS_CNI_Policy,
